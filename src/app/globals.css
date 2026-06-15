@@ -2,26 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@layer base {
+  .theme {
+    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+  }
+  :root {
+    --background: oklch(0.15 0.03 260); /* Deep space blue/slate */
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.18 0.04 260); /* Slightly lighter glass card */
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.18 0.04 260);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.65 0.18 160); /* Vibrant Emerald */
+    --primary-foreground: oklch(0.10 0.02 160);
+    --secondary: oklch(0.22 0.06 260);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.22 0.06 260);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.25 0.08 260);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(0.30 0.05 260);
+    --input: oklch(0.30 0.05 260);
+    --ring: oklch(0.65 0.18 160);
+    --radius: 0.75rem;
+  }
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }

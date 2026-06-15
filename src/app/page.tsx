@@ -1,101 +1,151 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [url, setUrl] = useState("");
+  const router = useRouter();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const { mutate, data, isPending, error } = useMutation({
+    mutationFn: async (videoUrl: string) => {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl }),
+      });
+      if (!res.ok) throw new Error("Generation failed");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data?.module?.id) {
+        router.push(`/module/${data.module.id}`);
+      }
+    }
+  });
+
+  const handleGenerate = () => {
+    if (url.includes("youtube.com/watch") || url.includes("youtu.be")) {
+      mutate(url);
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white">
+      <div className="flex justify-end p-4 gap-4">
+        <Link href="/mock-test/configure">
+          <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 bg-slate-800/50">
+            Mock Tests
+          </Button>
+        </Link>
+        <Link href="/dashboard">
+          <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 bg-slate-800/50">
+            Dashboard
+          </Button>
+        </Link>
+        <Link href="/library">
+          <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 bg-slate-800/50">
+            Library
+          </Button>
+        </Link>
+      </div>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-12"
+        >
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+            StudyAI
+          </h1>
+          <p className="text-lg text-slate-300 mt-3">
+            Paste a YouTube lecture, get instant study notes
+          </p>
+        </motion.div>
+
+        {/* Input Card */}
+        <Card className="p-6 bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+          <div className="flex gap-3">
+            <Input
+              placeholder="https://youtube.com/watch?v=..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="flex-1 bg-slate-900 border-slate-700 text-white placeholder:text-slate-500"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <Button
+              onClick={handleGenerate}
+              disabled={isPending}
+              className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-6"
+            >
+              {isPending ? "Generating..." : "Generate Notes"}
+            </Button>
+          </div>
+        </Card>
+
+        {/* Loading State */}
+        {isPending && (
+          <div className="mt-8 space-y-4">
+            <Skeleton className="h-8 w-3/4 bg-slate-700" />
+            <Skeleton className="h-4 w-full bg-slate-700" />
+            <Skeleton className="h-4 w-5/6 bg-slate-700" />
+            <Skeleton className="h-4 w-2/3 bg-slate-700" />
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-6 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-400"
           >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+            {error.message ||
+              "Something went wrong. Check your link or try again."}
+          </motion.div>
+        )}
+
+        {/* Results */}
+        <AnimatePresence>
+          {data?.module?.notes && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="mt-8"
+            >
+              <Card className="p-8 bg-slate-800/50 border-slate-700 backdrop-blur-sm prose prose-invert max-w-none">
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: markdownToHtml(data.module.notes),
+                  }}
+                />
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </main>
   );
+}
+
+// Simple Markdown-to-HTML (we'll use a proper library in next phases)
+function markdownToHtml(md: string): string {
+  return md
+    .replace(/### (.*)/g, '<h3 class="text-xl font-bold mt-6 mb-2">$1</h3>')
+    .replace(
+      /## (.*)/g,
+      '<h2 class="text-2xl font-bold mt-8 mb-4 border-b border-slate-600 pb-2">$1</h2>',
+    )
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/- (.*)/g, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/\n/g, "<br/>");
 }

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabase';
+import { GoogleGenAI } from '@google/genai';
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1/chat/completions';
 const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
@@ -20,49 +21,92 @@ interface ChatMessage {
   content: string;
 }
 
-async function callOpenRouter(model: string, messages: ChatMessage[], fallbackModel?: string) {
-  const res = await fetch(OPENROUTER_BASE, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      'X-Title': 'StudyAI',
-    },
-    body: JSON.stringify({ model, messages }),
+const geminiAi = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
+async function callGemini(messages: ChatMessage[]) {
+  const prompt = messages.map(m => m.content).join('\n\n');
+  const response = await geminiAi.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
   });
-
-  if (!res.ok) {
-    if (fallbackModel) {
-      console.log(`Model ${model} failed, falling back to ${fallbackModel}`);
-      return callOpenRouter(fallbackModel, messages);
-    }
-    throw new Error(`OpenRouter call failed: ${res.statusText}`);
-  }
-
-  const data = await res.json();
-  return data.choices[0].message.content;
+  return response.text;
 }
 
-async function callGroq(model: string, messages: ChatMessage[]) {
+async function callOpenRouter(model: string, messages: ChatMessage[], fallbackModel?: string): Promise<string> {
+  try {
+    const res = await fetch(OPENROUTER_BASE, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        'X-Title': 'StudyAI',
+      },
+      body: JSON.stringify({ model, messages }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`OpenRouter failed: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    return data.choices[0].message.content;
+  } catch (error) {
+    if (fallbackModel) {
+      console.log(`Model ${model} failed, falling back to OpenRouter ${fallbackModel}`);
+      try {
+        return await callOpenRouter(fallbackModel, messages);
+      } catch {
+        // Drop down to gemini fallback
+      }
+    }
+    console.log(`OpenRouter completely failed for ${model}. Falling back to reliable Gemini.`);
+    return callGemini(messages);
+  }
+}
+
+async function callGroq(model: string, messages: ChatMessage[]): Promise<string> {
   const finalModel = USE_CUSTOM_MODEL && CUSTOM_MODEL_ID ? CUSTOM_MODEL_ID : model;
   
-  const res = await fetch(GROQ_BASE, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ model: finalModel, messages }),
-  });
+  try {
+    const res = await fetch(GROQ_BASE, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model: finalModel, messages }),
+    });
 
-  if (!res.ok) throw new Error(`Groq call failed: ${res.statusText}`);
-  const data = await res.json();
-  return data.choices[0].message.content;
+    if (!res.ok) throw new Error(`Groq call failed: ${res.statusText}`);
+    const data = await res.json();
+    return data.choices[0].message.content;
+  } catch (error) {
+    console.log(`Groq completely failed for ${model}. Falling back to reliable Gemini.`);
+    return callGemini(messages);
+  }
+}
+
+function parseJsonResponse(response: string, isArray = true) {
+  try {
+    return JSON.parse(response);
+  } catch (e) {
+    const match = response.match(/```(?:json)?\n([\s\S]*?)\n```/i);
+    if (match) {
+      try {
+        return JSON.parse(match[1]);
+      } catch (err) {
+        return isArray ? [] : null;
+      }
+    }
+    return isArray ? [] : null;
+  }
 }
 
 export async function generateMcqs(transcript: string, moduleId: string) {
-  const prompt = `Based on the following transcript, generate 10 multiple-choice questions (MCQs) for government exam preparation.
+  const prompt = `Based on the following content, generate 10 incredibly difficult, high-stakes multiple-choice questions (MCQs) designed specifically for competitive Government Exams (e.g., UPSC, SSC, Civil Services). Focus on nuanced, tricky concepts rather than basic facts.
 For each MCQ, provide:
 - question (string)
 - options (array of 4 strings)
@@ -70,55 +114,51 @@ For each MCQ, provide:
 - explanation (string)
 - topic (short, like "Fundamental Rights" or "Indian Geography")
 
-Output as a JSON array.
+CRITICAL: Regardless of the source text language, the MCQs and all fields MUST be generated in STRICTLY ENGLISH. Translate if necessary.
+
+Output as a JSON array ONLY. Do not include markdown formatting, just the raw JSON array.
   
-  Transcript:
+  Source Text:
   ${transcript}`;
 
-  // Use custom model if available on OpenRouter (if you uploaded it there), otherwise fallback to deepseek
   const primaryModel = USE_CUSTOM_MODEL && CUSTOM_MODEL_ID ? CUSTOM_MODEL_ID : MODELS.deepseek;
 
   const response = await callOpenRouter(primaryModel, [
-    { role: 'system', content: 'You generate exam-style MCQs.' },
+    { role: 'system', content: 'You generate exam-style MCQs in English. Output pure JSON.' },
     { role: 'user', content: prompt }
-  ], MODELS.nemotron); // fallback to nemotron if primary fails
+  ], MODELS.nemotron);
 
-  // Parse the JSON response
-  let mcqs;
-  try {
-    mcqs = JSON.parse(response);
-  } catch (e) {
-    // if not valid JSON, try to extract from code blocks
-    const match = response.match(/```json\n([\s\S]*?)\n```/);
-    mcqs = match ? JSON.parse(match[1]) : [];
-  }
+  const mcqs = parseJsonResponse(response, true);
 
-  // Insert into Supabase
-  for (const mcq of mcqs) {
-    await supabaseAdmin.from('mcqs').insert({
-      module_id: moduleId,
-      question: mcq.question,
-      options: mcq.options,
-      correct_index: mcq.correctIndex,
-      explanation: mcq.explanation,
-      topic: mcq.topic
-    });
+  if (mcqs && mcqs.length > 0) {
+    for (const mcq of mcqs) {
+      await supabaseAdmin.from('mcqs').insert({
+        module_id: moduleId,
+        question: mcq.question,
+        options: mcq.options,
+        correct_index: mcq.correctIndex,
+        explanation: mcq.explanation,
+        topic: mcq.topic
+      });
+    }
   }
   return mcqs;
 }
 
 export async function generateRevisionSheet(transcript: string, moduleId: string) {
-  const prompt = `Based on the transcript, create a concise revision sheet with:
+  const prompt = `Based on the source text, create a rapid-fire, high-yield revision sheet specifically designed for last-minute competitive Government Exam (UPSC/SSC) preparation. Include:
   - Key points
   - One-liner facts
   - Important dates/names/definitions
   - Quick summary
   
-  Transcript:
+  CRITICAL: Regardless of the source text language, the revision sheet MUST be generated in STRICTLY ENGLISH. Translate if necessary.
+
+  Source Text:
   ${transcript}`;
 
   const response = await callOpenRouter(MODELS.nemotron, [
-    { role: 'system', content: 'You create revision material.' },
+    { role: 'system', content: 'You create revision material in English.' },
     { role: 'user', content: prompt }
   ]);
 
@@ -130,31 +170,30 @@ export async function generateRevisionSheet(transcript: string, moduleId: string
 }
 
 export async function generateFlashcards(transcript: string, moduleId: string) {
-  const prompt = `Based on the transcript, create 15 flashcards. Each flashcard should have a front (question/concept) and back (answer/definition).
-  Output as a JSON array of objects with fields: front, back.
+  const prompt = `Based on the source text, create 15 advanced flashcards tailored for competitive Government Exam preparation (UPSC/SSC). Focus on high-probability exam topics, historical dates, complex definitions, and critical concepts. Each flashcard should have a front (question/concept) and back (answer/definition).
   
-  Transcript:
+  CRITICAL: Regardless of the source text language, the flashcards MUST be generated in STRICTLY ENGLISH. Translate if necessary.
+  
+  Output as a JSON array ONLY of objects with fields: front, back. Do not include markdown formatting, just the raw JSON array.
+  
+  Source Text:
   ${transcript}`;
 
   const response = await callGroq(MODELS.groqLlama, [
-    { role: 'system', content: 'You generate flashcards for study.' },
+    { role: 'system', content: 'You generate flashcards for study in English. Output pure JSON.' },
     { role: 'user', content: prompt }
   ]);
 
-  let cards;
-  try {
-    cards = JSON.parse(response);
-  } catch {
-    const match = response.match(/```json\n([\s\S]*?)\n```/);
-    cards = match ? JSON.parse(match[1]) : [];
-  }
+  const cards = parseJsonResponse(response, true);
 
-  for (const card of cards) {
-    await supabaseAdmin.from('flashcards').insert({
-      module_id: moduleId,
-      front: card.front,
-      back: card.back
-    });
+  if (cards && cards.length > 0) {
+    for (const card of cards) {
+      await supabaseAdmin.from('flashcards').insert({
+        module_id: moduleId,
+        front: card.front,
+        back: card.back
+      });
+    }
   }
   return cards;
 }

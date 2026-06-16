@@ -19,7 +19,7 @@ export default function ModulePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('study_modules')
-        .select('notes')
+        .select('notes, video_title')
         .eq('id', id)
         .single();
       return data;
@@ -80,150 +80,183 @@ export default function ModulePage() {
   };
 
   return (
-    <main className="min-h-screen bg-background relative overflow-hidden text-foreground pb-20">
+    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-300">
       {/* Background ambient mesh glow */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full mix-blend-screen" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/20 blur-[120px] rounded-full mix-blend-screen" />
+      <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full mix-blend-screen" />
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="mb-8 text-center"
-        >
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
+      <header className="relative z-10 border-b border-white/10 bg-slate-900/50 backdrop-blur-xl px-6 py-4 flex items-center justify-between sticky top-0">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-400 line-clamp-1">
             {module?.video_title || "Study Module"}
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Master this topic with AI-generated notes, interactive flashcards, and exam-style MCQs.
-          </p>
-        </motion.div>
+        </div>
+      </header>
 
-        <Card className="p-1 sm:p-2 bg-card/40 backdrop-blur-xl border-white/10 shadow-2xl rounded-2xl overflow-hidden ring-1 ring-white/5">
-          <Tabs defaultValue="notes" className="w-full">
-            <TabsList className="bg-muted/50 p-1 w-full justify-start overflow-x-auto flex-nowrap rounded-xl no-scrollbar border-b border-white/5 mb-2">
-              <TabsTrigger value="notes" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-none transition-all">
-                Notes
+      <Tabs defaultValue="notes" className="flex-1 flex flex-col md:flex-row relative z-10 max-w-[1600px] mx-auto w-full">
+        {/* Left Sidebar Menu */}
+        <aside className="w-full md:w-[280px] lg:w-[320px] border-r border-white/5 bg-slate-900/30 p-4 md:p-6 shrink-0 md:min-h-[calc(100vh-80px)] overflow-y-auto">
+          <div className="mb-8">
+            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Module Content</p>
+            <TabsList className="flex md:flex-col bg-transparent w-full h-auto p-0 space-y-0 space-x-2 md:space-x-0 md:space-y-2 overflow-x-auto justify-start">
+              <TabsTrigger 
+                value="notes" 
+                className="w-full justify-start px-4 py-3 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:shadow-none text-slate-400 hover:bg-white/5 transition-all"
+              >
+                <div className="flex items-center gap-3 font-medium">
+                  <span className="text-lg">📝</span> Detailed Notes
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="mcqs" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-none transition-all">
-                MCQs <span className="ml-2 text-xs bg-primary/20 px-2 py-0.5 rounded-full">{mcqs.length}</span>
+              <TabsTrigger 
+                value="mcqs" 
+                className="w-full justify-start px-4 py-3 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:shadow-none text-slate-400 hover:bg-white/5 transition-all"
+              >
+                <div className="flex items-center justify-between w-full font-medium">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">🎯</span> Practice MCQs
+                  </div>
+                  <span className="bg-emerald-500/20 text-emerald-300 py-0.5 px-2 rounded-full text-xs">{mcqs.length}</span>
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="flashcards" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-none transition-all">
-                Flashcards <span className="ml-2 text-xs bg-primary/20 px-2 py-0.5 rounded-full">{flashcards.length}</span>
+              <TabsTrigger 
+                value="flashcards" 
+                className="w-full justify-start px-4 py-3 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:shadow-none text-slate-400 hover:bg-white/5 transition-all"
+              >
+                <div className="flex items-center justify-between w-full font-medium">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">🎴</span> Flashcards
+                  </div>
+                  <span className="bg-emerald-500/20 text-emerald-300 py-0.5 px-2 rounded-full text-xs">{flashcards.length}</span>
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="revision" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-none transition-all">
-                Revision
+              <TabsTrigger 
+                value="revision" 
+                className="w-full justify-start px-4 py-3 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:shadow-none text-slate-400 hover:bg-white/5 transition-all"
+              >
+                <div className="flex items-center gap-3 font-medium">
+                  <span className="text-lg">⚡</span> Rapid Revision
+                </div>
               </TabsTrigger>
             </TabsList>
+          </div>
+        </aside>
 
-            <div className="p-4 sm:p-6 md:p-8">
-              <TabsContent value="notes" className="mt-0 focus-visible:outline-none">
-                {notesLoading ? (
-                  <div className="flex items-center justify-center py-20">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                  </div>
-                ) : (
-                  <motion.div 
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }} 
-                    transition={{ duration: 0.4 }}
-                    className="prose prose-invert prose-primary max-w-none prose-headings:font-bold prose-h2:border-b prose-h2:border-white/10 prose-h2:pb-2 prose-a:text-primary hover:prose-a:text-primary/80 prose-strong:text-white"
-                  >
-                    <div dangerouslySetInnerHTML={{ __html: markdownToHtml(module?.notes || '') }} />
-                    <div className="mt-12 pt-6 border-t border-white/10">
-                      <FeedbackWidget
-                        contentType="notes"
-                        contentId={id}
-                        originalContent={module?.notes}
-                        metadata={{ source: 'youtube' }}
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="mcqs" className="mt-0 focus-visible:outline-none">
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  <McqQuiz mcqs={mcqs} />
-                </motion.div>
-              </TabsContent>
-
-              <TabsContent value="flashcards" className="mt-0 focus-visible:outline-none">
+        {/* Right Content Area */}
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full">
+          <Card className="p-6 md:p-10 bg-slate-900/60 backdrop-blur-xl border-white/5 shadow-2xl rounded-3xl min-h-[70vh]">
+            <TabsContent value="notes" className="mt-0 focus-visible:outline-none">
+              {notesLoading ? (
+                <div className="flex items-center justify-center py-32">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+                </div>
+              ) : (
                 <motion.div 
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="show"
-                  className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  transition={{ duration: 0.4 }}
+                  className="prose prose-invert prose-emerald max-w-none prose-headings:font-extrabold prose-h2:border-b prose-h2:border-slate-800 prose-h2:pb-3 prose-a:text-blue-400 hover:prose-a:text-blue-300 prose-p:leading-relaxed prose-li:leading-relaxed"
                 >
-                  {flashcards.map((card: any) => (
-                    <motion.div 
-                      variants={itemVariants}
-                      key={card.id} 
-                      className="group relative p-6 bg-card/60 backdrop-blur-md border border-white/5 rounded-2xl hover:border-primary/30 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:-translate-y-1"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
-                      <p className="font-bold text-lg mb-4 text-foreground relative z-10">{card.front}</p>
-                      <p className="text-muted-foreground relative z-10 leading-relaxed mb-6">{card.back}</p>
-                      <div className="relative z-10 pt-4 border-t border-white/5 flex justify-end">
-                        <FeedbackWidget
-                          contentType="flashcard"
-                          contentId={card.id}
-                          originalContent={`Q: ${card.front}\nA: ${card.back}`}
-                          metadata={{ }}
-                        />
-                      </div>
-                    </motion.div>
-                  ))}
-                  {flashcards.length === 0 && (
-                    <div className="col-span-full py-20 text-center text-muted-foreground flex flex-col items-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-                      <p>Crafting intelligent flashcards...</p>
-                    </div>
-                  )}
+                  <div dangerouslySetInnerHTML={{ __html: markdownToHtml(module?.notes || '') }} />
+                  <div className="mt-16 pt-8 border-t border-white/10">
+                    <FeedbackWidget
+                      contentType="notes"
+                      contentId={id}
+                      originalContent={module?.notes}
+                      metadata={{ source: 'youtube' }}
+                    />
+                  </div>
                 </motion.div>
-              </TabsContent>
+              )}
+            </TabsContent>
 
-              <TabsContent value="revision" className="mt-0 focus-visible:outline-none">
-                {revision ? (
+            <TabsContent value="mcqs" className="mt-0 focus-visible:outline-none">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <McqQuiz mcqs={mcqs} />
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="flashcards" className="mt-0 focus-visible:outline-none">
+              <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 xl:grid-cols-2 gap-6"
+              >
+                {flashcards.map((card: any) => (
                   <motion.div 
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }}
-                    className="prose prose-invert prose-primary max-w-none prose-headings:font-bold"
+                    variants={itemVariants}
+                    key={card.id} 
+                    className="group relative h-64 perspective-1000"
                   >
-                    <div dangerouslySetInnerHTML={{ __html: markdownToHtml(revision) }} />
-                    <div className="mt-12 pt-6 border-t border-white/10">
-                      <FeedbackWidget
-                        contentType="revision"
-                        contentId={id}
-                        originalContent={revision}
-                        metadata={{ }}
-                      />
+                    <div className="relative w-full h-full transition-transform duration-700 transform-style-preserve-3d group-hover:rotate-y-180 cursor-pointer">
+                      {/* Front */}
+                      <div className="absolute w-full h-full backface-hidden bg-slate-800/80 border border-slate-700 rounded-3xl p-8 flex items-center justify-center text-center shadow-lg hover:border-emerald-500/50 transition-colors">
+                        <p className="text-xl font-bold text-white leading-relaxed">{card.front}</p>
+                      </div>
+                      {/* Back */}
+                      <div className="absolute w-full h-full backface-hidden bg-emerald-900/90 border border-emerald-500/50 rounded-3xl p-8 flex flex-col items-center justify-center text-center rotate-y-180 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+                        <p className="text-sm font-black text-emerald-400 uppercase tracking-widest mb-4">Answer</p>
+                        <p className="text-lg text-emerald-50 leading-relaxed overflow-y-auto no-scrollbar">{card.back}</p>
+                        <div className="absolute bottom-4 right-4">
+                          <FeedbackWidget
+                            contentType="flashcard"
+                            contentId={card.id}
+                            originalContent={`Q: ${card.front}\nA: ${card.back}`}
+                            metadata={{ }}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
-                ) : (
-                  <div className="py-20 text-center text-muted-foreground flex flex-col items-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-                    <p>Compiling rapid revision sheet...</p>
+                ))}
+                {flashcards.length === 0 && (
+                  <div className="col-span-full py-32 text-center text-slate-500 flex flex-col items-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-6"></div>
+                    <p className="text-lg">Crafting intelligent flashcards...</p>
                   </div>
                 )}
-              </TabsContent>
-            </div>
-          </Tabs>
-        </Card>
-      </div>
-    </main>
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="revision" className="mt-0 focus-visible:outline-none">
+              {revision ? (
+                <motion.div 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }}
+                  className="prose prose-invert prose-emerald max-w-none prose-headings:font-bold"
+                >
+                  <div dangerouslySetInnerHTML={{ __html: markdownToHtml(revision) }} />
+                  <div className="mt-16 pt-8 border-t border-white/10">
+                    <FeedbackWidget
+                      contentType="revision"
+                      contentId={id}
+                      originalContent={revision}
+                      metadata={{ }}
+                    />
+                  </div>
+                </motion.div>
+              ) : (
+                <div className="py-32 text-center text-slate-500 flex flex-col items-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-6"></div>
+                  <p className="text-lg">Compiling rapid revision sheet...</p>
+                </div>
+              )}
+            </TabsContent>
+          </Card>
+        </main>
+      </Tabs>
+    </div>
   );
 }
 
 function markdownToHtml(md: string): string {
   if (!md) return '';
   return md
-    .replace(/### (.*)/g, '<h3 class="text-xl font-bold mt-6 mb-2">$1</h3>')
-    .replace(/## (.*)/g, '<h2 class="text-2xl font-bold mt-8 mb-4 border-b border-slate-600 pb-2">$1</h2>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/- (.*)/g, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/### (.*)/g, '<h3 class="text-xl font-bold mt-6 mb-2 text-white">$1</h3>')
+    .replace(/## (.*)/g, '<h2 class="text-2xl font-extrabold mt-8 mb-4 border-b border-slate-700 pb-2 text-emerald-400">$1</h2>')
+    .replace(/\*\*(.*?)\*\*/g, "<strong class='text-white'>$1</strong>")
+    .replace(/- (.*)/g, '<li class="ml-6 list-disc mb-1 text-slate-300">$1</li>')
     .replace(/\n/g, '<br/>');
 }
